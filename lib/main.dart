@@ -1,5 +1,7 @@
-import 'package:flutter/material.dart';
 import 'dart:math' show pi;
+
+import 'package:flutter/material.dart';
+import 'package:vector_math/vector_math_64.dart' show Vector3;
 
 void main() {
   runApp(const App());
@@ -8,7 +10,6 @@ void main() {
 class App extends StatelessWidget {
   const App({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -16,10 +17,13 @@ class App extends StatelessWidget {
       darkTheme: ThemeData(brightness: Brightness.dark),
       themeMode: ThemeMode.dark,
       debugShowCheckedModeBanner: false,
+      debugShowMaterialGrid: false,
       home: const HomePage(),
     );
   }
 }
+
+const widthAndHeight = 100.0;
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -28,176 +32,142 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-extension on VoidCallback {
-  Future<void> delayed(Duration duration) => Future.delayed(duration, this);
-}
-
-enum CircleSide {
-  left,
-  right,
-}
-
-extension ToPath on CircleSide {
-  Path toPath(Size size) {
-    var path = Path();
-    late Offset offset;
-    late bool clickwise;
-    switch (this) {
-      case CircleSide.left:
-        path.moveTo(size.width, 0);
-        offset = Offset(size.width, size.height);
-        clickwise = false;
-        break;
-      case CircleSide.right:
-        offset = Offset(0, size.height);
-        clickwise = true;
-        break;
-    }
-    path.arcToPoint(offset,
-        radius: Radius.elliptical(size.width / 2, size.height / 2),
-        clockwise: clickwise);
-    path.close();
-    return path;
-  }
-}
-
-class HalfCircleClipper extends CustomClipper<Path> {
-  final CircleSide side;
-
-  const HalfCircleClipper({required this.side});
-
-  @override
-  Path getClip(Size size) => side.toPath(size);
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => true;
-}
-
 class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
-  late AnimationController _counterClockwiseRotationController;
-  late Animation<double> _counterClockwiseRotationAnimation;
+  late AnimationController _xController;
+  late AnimationController _yController;
+  late AnimationController _zController;
+  late Tween<double> _animation;
 
-  late AnimationController _flipController;
-  late Animation<double> _flipAnimation;
   @override
   void initState() {
-    _counterClockwiseRotationController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 1),
-    );
-    _counterClockwiseRotationAnimation = Tween<double>(
-      begin: 0.0,
-      end: -(2 / pi),
-    ).animate(CurvedAnimation(
-        parent: _counterClockwiseRotationController, curve: Curves.bounceOut));
-    _counterClockwiseRotationController.repeat();
-
-    //flip animation
-
-    _flipController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 1),
-    );
-
-    _flipAnimation = Tween<double>(begin: 0, end: pi).animate(
-        CurvedAnimation(parent: _flipController, curve: Curves.bounceOut));
-
-    _counterClockwiseRotationController.addStatusListener((status) {
-      if (status == AnimationStatus.completed) {
-        _flipAnimation = Tween<double>(
-                begin: _flipAnimation.value, end: _flipAnimation.value + pi)
-            .animate(CurvedAnimation(
-                parent: _flipController, curve: Curves.bounceInOut));
-
-        _flipController
-          ..reset()
-          ..forward.delayed(const Duration(seconds: 1));
-      }
-    });
-    _flipController.addStatusListener((status) {
-      if (status == AnimationStatus.completed) {
-        _counterClockwiseRotationAnimation = Tween<double>(
-          begin: _counterClockwiseRotationAnimation.value,
-          end: _counterClockwiseRotationAnimation.value + -(pi / 2),
-        ).animate(CurvedAnimation(
-            parent: _counterClockwiseRotationController,
-            curve: Curves.bounceOut));
-        _counterClockwiseRotationController
-          ..reset()
-          ..forward();
-      }
-    });
-
     super.initState();
+    _xController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 20),
+    );
+    _yController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 30),
+    );
+    _zController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 40),
+    );
+    _animation = Tween<double>(
+      begin: 0,
+      end: pi * 2,
+    );
   }
 
   @override
   void dispose() {
-    _counterClockwiseRotationController.dispose();
-    _flipController.dispose();
+    _xController.dispose();
+    _yController.dispose();
+    _zController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    _counterClockwiseRotationController
+    _xController
       ..reset()
-      ..forward.delayed(const Duration(seconds: 1));
+      ..repeat();
 
+    _yController
+      ..reset()
+      ..repeat();
+    _zController
+      ..reset()
+      ..repeat();
     return Scaffold(
-        body: SafeArea(
-      child: AnimatedBuilder(
-        animation: _counterClockwiseRotationController,
-        builder: (context, child) {
-          return Transform(
-            alignment: Alignment.center,
-            transform: Matrix4.identity()
-              ..rotateZ(_counterClockwiseRotationAnimation.value),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                AnimatedBuilder(
-                  animation: _flipController,
-                  builder: (context, child) {
-                    return Transform(
-                      alignment: Alignment.centerRight,
+      body: Column(
+        children: [
+          const SizedBox(
+            height: 100,
+            width: double.infinity,
+          ),
+          AnimatedBuilder(
+            animation: Listenable.merge([
+              _xController,
+              _yController,
+              _zController,
+            ]),
+            builder: (context, child) {
+              return Transform(
+                alignment: Alignment.center,
+                transform: Matrix4.identity()
+                  ..rotateY(_animation.evaluate(_xController))
+                  ..rotateX(_animation.evaluate(_yController))
+                  ..rotateZ(_animation.evaluate(_zController)),
+                child: Stack(
+                  children: [
+                    //back
+                    Transform(
+                      alignment: Alignment.center,
                       transform: Matrix4.identity()
-                        ..rotateY(_flipAnimation.value),
-                      child: ClipPath(
-                        clipper: const HalfCircleClipper(side: CircleSide.left),
-                        child: Container(
-                          color: Colors.blue,
-                          width: 100,
-                          height: 100,
-                        ),
+                        ..translate(Vector3(0, 0, -widthAndHeight)),
+                      child: Container(
+                        color: Colors.purple,
+                        width: widthAndHeight,
+                        height: widthAndHeight,
                       ),
-                    );
-                  },
-                ),
-                AnimatedBuilder(
-                  animation: _flipAnimation,
-                  builder: (context, child) {
-                    return Transform(
+                    ),
+
+                    //left side
+                    Transform(
                       alignment: Alignment.centerLeft,
-                      transform: Matrix4.identity()
-                        ..rotateY(_flipAnimation.value),
-                      child: ClipPath(
-                        clipper:
-                            const HalfCircleClipper(side: CircleSide.right),
-                        child: Container(
-                          color: Colors.red,
-                          width: 100,
-                          height: 100,
-                        ),
+                      transform: Matrix4.identity()..rotateY(pi / 2.0),
+                      child: Container(
+                        color: Colors.red,
+                        width: widthAndHeight,
+                        height: widthAndHeight,
                       ),
-                    );
-                  },
+                    ),
+                    //right side
+                    Transform(
+                      alignment: Alignment.centerRight,
+                      transform: Matrix4.identity()..rotateY(-pi / 2.0),
+                      child: Container(
+                        color: Colors.blue,
+                        width: widthAndHeight,
+                        height: widthAndHeight,
+                      ),
+                    ),
+                    //front
+                    Container(
+                      color: Colors.green,
+                      width: widthAndHeight,
+                      height: widthAndHeight,
+                    ),
+
+                    //top side
+                    Transform(
+                      alignment: Alignment.topCenter,
+                      transform: Matrix4.identity()..rotateX(-pi / 2.0),
+                      child: Container(
+                        color: Colors.orange,
+                        width: widthAndHeight,
+                        height: widthAndHeight,
+                      ),
+                    ),
+
+                    //bottom side
+                    Transform(
+                      alignment: Alignment.bottomCenter,
+                      transform: Matrix4.identity()..rotateX(pi / 2.0),
+                      child: Container(
+                        color: Colors.brown,
+                        width: widthAndHeight,
+                        height: widthAndHeight,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          );
-        },
+              );
+            },
+          ),
+        ],
       ),
-    ));
+    );
   }
 }
