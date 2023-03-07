@@ -23,148 +23,112 @@ class App extends StatelessWidget {
   }
 }
 
-const widthAndHeight = 100.0;
+@immutable
+class Person {
+  final String name;
+  final int age;
+  final String emoji;
 
-class HomePage extends StatefulWidget {
+  const Person({required this.name, required this.age, required this.emoji});
+}
+
+const people = [
+  Person(name: 'John', age: 20, emoji: '🙋🏻‍♂️'),
+  Person(name: 'Jane', age: 21, emoji: '👸🏽'),
+  Person(name: 'Jack', age: 22, emoji: '🧔🏿‍♂️'),
+];
+
+class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("People"),
+      ),
+      body: ListView.builder(
+          itemCount: people.length,
+          itemBuilder: (context, index) {
+            final person = people[index];
+            return ListTile(
+              onTap: () {
+                Navigator.of(context).push(MaterialPageRoute(
+                    builder: (context) => DetailsPage(person: person)));
+              },
+              leading: Hero(
+                tag: person.name,
+                child: Text(
+                  person.emoji,
+                  style: const TextStyle(fontSize: 40),
+                ),
+              ),
+              title: Text(person.name),
+              subtitle: Text(
+                '${person.age} years old',
+              ),
+              trailing: const Icon(Icons.arrow_forward_ios),
+            );
+          }),
+    );
+  }
 }
 
-class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
-  late AnimationController _xController;
-  late AnimationController _yController;
-  late AnimationController _zController;
-  late Tween<double> _animation;
-
-  @override
-  void initState() {
-    super.initState();
-    _xController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 20),
-    );
-    _yController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 30),
-    );
-    _zController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 40),
-    );
-    _animation = Tween<double>(
-      begin: 0,
-      end: pi * 2,
-    );
-  }
-
-  @override
-  void dispose() {
-    _xController.dispose();
-    _yController.dispose();
-    _zController.dispose();
-    super.dispose();
-  }
+class DetailsPage extends StatelessWidget {
+  final Person person;
+  const DetailsPage({super.key, required this.person});
 
   @override
   Widget build(BuildContext context) {
-    _xController
-      ..reset()
-      ..repeat();
-
-    _yController
-      ..reset()
-      ..repeat();
-    _zController
-      ..reset()
-      ..repeat();
     return Scaffold(
+      appBar: AppBar(
+        title: Hero(
+          flightShuttleBuilder: (flightContext, animation, flightDirection,
+              fromHeroContext, toHeroContext) {
+            switch (flightDirection) {
+              case HeroFlightDirection.push:
+                return Material(
+                    color: Colors.transparent,
+                    child: ScaleTransition(
+                        scale: animation.drive(
+                          Tween<double>(
+                            begin: 0.0,
+                            end: 1.0,
+                          ).chain(
+                            CurveTween(
+                              curve: Curves.fastOutSlowIn,
+                            ),
+                          ),
+                        ),
+                        child: toHeroContext.widget));
+
+              case HeroFlightDirection.pop:
+                return Material(
+                    color: Colors.transparent, child: fromHeroContext.widget);
+            }
+          },
+          tag: person.name,
+          child: Material(
+            color: Colors.transparent,
+            child: Text(
+              person.emoji,
+              style: const TextStyle(fontSize: 50),
+            ),
+          ),
+        ),
+      ),
       body: Column(
         children: [
-          const SizedBox(
-            height: 100,
-            width: double.infinity,
+          Text(
+            person.name,
+            style: const TextStyle(fontSize: 20),
           ),
-          AnimatedBuilder(
-            animation: Listenable.merge([
-              _xController,
-              _yController,
-              _zController,
-            ]),
-            builder: (context, child) {
-              return Transform(
-                alignment: Alignment.center,
-                transform: Matrix4.identity()
-                  ..rotateY(_animation.evaluate(_xController))
-                  ..rotateX(_animation.evaluate(_yController))
-                  ..rotateZ(_animation.evaluate(_zController)),
-                child: Stack(
-                  children: [
-                    //back
-                    Transform(
-                      alignment: Alignment.center,
-                      transform: Matrix4.identity()
-                        ..translate(Vector3(0, 0, -widthAndHeight)),
-                      child: Container(
-                        color: Colors.purple,
-                        width: widthAndHeight,
-                        height: widthAndHeight,
-                      ),
-                    ),
-
-                    //left side
-                    Transform(
-                      alignment: Alignment.centerLeft,
-                      transform: Matrix4.identity()..rotateY(pi / 2.0),
-                      child: Container(
-                        color: Colors.red,
-                        width: widthAndHeight,
-                        height: widthAndHeight,
-                      ),
-                    ),
-                    //right side
-                    Transform(
-                      alignment: Alignment.centerRight,
-                      transform: Matrix4.identity()..rotateY(-pi / 2.0),
-                      child: Container(
-                        color: Colors.blue,
-                        width: widthAndHeight,
-                        height: widthAndHeight,
-                      ),
-                    ),
-                    //front
-                    Container(
-                      color: Colors.green,
-                      width: widthAndHeight,
-                      height: widthAndHeight,
-                    ),
-
-                    //top side
-                    Transform(
-                      alignment: Alignment.topCenter,
-                      transform: Matrix4.identity()..rotateX(-pi / 2.0),
-                      child: Container(
-                        color: Colors.orange,
-                        width: widthAndHeight,
-                        height: widthAndHeight,
-                      ),
-                    ),
-
-                    //bottom side
-                    Transform(
-                      alignment: Alignment.bottomCenter,
-                      transform: Matrix4.identity()..rotateX(pi / 2.0),
-                      child: Container(
-                        color: Colors.brown,
-                        width: widthAndHeight,
-                        height: widthAndHeight,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
+          const SizedBox(
+            height: 20,
+          ),
+          Text(
+            '${person.age} years old',
+            style: const TextStyle(fontSize: 20),
           ),
         ],
       ),
